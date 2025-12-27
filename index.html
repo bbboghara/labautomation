@@ -221,7 +221,23 @@
             <div class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl"><i class="fa-solid fa-lock"></i></div>
             <h2 class="text-2xl font-bold text-slate-800 mb-2">Access Restricted</h2>
             <p class="text-slate-500 mb-6">Please sign in to access the Clinical Test Mode.</p>
-            <button onclick="window.triggerLogin()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2"><i class="fa-brands fa-google"></i> Sign in with Google</button>
+            
+            <div class="space-y-3 mb-4 text-left">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">Select User</label>
+                    <select id="loginUserSelect" class="w-full p-3 border rounded-lg font-bold bg-slate-50 outline-none focus:border-red-500 text-sm">
+                        <option value="">Loading users...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">PIN</label>
+                    <input type="password" id="loginPin" maxlength="4" placeholder="••••" class="w-full p-3 border rounded-lg text-center text-xl tracking-widest outline-none focus:border-red-500">
+                </div>
+            </div>
+
+            <button onclick="window.triggerPinLogin()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition shadow-lg mb-3">Sign In</button>
+            <div class="text-xs text-gray-400 mb-3">- OR -</div>
+            <button onclick="window.triggerLogin()" class="w-full bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold py-3 rounded-xl transition flex items-center justify-center gap-2"><i class="fa-brands fa-google"></i> Sign in with Google</button>
         </div>
     </div>
 
@@ -421,7 +437,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, signOut, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
         import { getFirestore, collection, doc, onSnapshot, setDoc, getDoc, getDocs, deleteDoc, addDoc, enableIndexedDbPersistence, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
         import { getVertexAI, getGenerativeModel } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-vertexai.js";
 
@@ -492,6 +508,7 @@
             if (!user) {
                 // Prevent redirect loop by showing login overlay instead
                 document.getElementById('loginOverlay').classList.remove('hidden');
+                loadLoginDropdown();
                 return;
             }
             
@@ -525,6 +542,30 @@
 
         window.logout = () => signOut(auth);
         
+        async function loadLoginDropdown() {
+            const select = document.getElementById('loginUserSelect');
+            if (select.options.length > 1) return;
+            try {
+                const staff = await getCachedStaff();
+                select.innerHTML = '<option value="" disabled selected>Select Name...</option>';
+                staff.forEach(s => {
+                    select.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+                });
+            } catch (e) { select.innerHTML = '<option value="">Error loading staff</option>'; }
+        }
+
+        window.triggerPinLogin = async () => {
+            const id = document.getElementById('loginUserSelect').value;
+            const pin = document.getElementById('loginPin').value;
+            if (!id || pin.length !== 4) return alert("Please select a user and enter 4-digit PIN.");
+            
+            try {
+                await signInWithEmailAndPassword(auth, `${id}@nicu.com`, pin + "00");
+            } catch (e) {
+                alert("Login Failed: " + e.message);
+            }
+        };
+
         window.triggerLogin = async () => {
             const provider = new GoogleAuthProvider();
             try {
