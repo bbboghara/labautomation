@@ -215,6 +215,16 @@
         </div>
     </div>
 
+    <!-- LOGIN OVERLAY (Prevents Redirect Loop) -->
+    <div id="loginOverlay" class="hidden fixed inset-0 z-[100] bg-slate-900 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl p-8 max-w-sm w-full text-center">
+            <div class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl"><i class="fa-solid fa-lock"></i></div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">Access Restricted</h2>
+            <p class="text-slate-500 mb-6">Please sign in to access the Clinical Test Mode.</p>
+            <button onclick="window.triggerLogin()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2"><i class="fa-brands fa-google"></i> Sign in with Google</button>
+        </div>
+    </div>
+
     <!-- CODE SYNC MODAL -->
     <div id="codeSyncModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col h-[600px] overflow-hidden">
@@ -411,7 +421,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, signOut, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
         import { getFirestore, collection, doc, onSnapshot, setDoc, getDoc, getDocs, deleteDoc, addDoc, enableIndexedDbPersistence, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
         import { getVertexAI, getGenerativeModel } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-vertexai.js";
 
@@ -480,10 +490,12 @@
         // 1. GLOBAL AUTH CHECK
         onAuthStateChanged(auth, async (user) => {
             if (!user) {
-                window.location.href = "../index.html"; 
+                // Prevent redirect loop by showing login overlay instead
+                document.getElementById('loginOverlay').classList.remove('hidden');
                 return;
             }
             
+            document.getElementById('loginOverlay').classList.add('hidden');
             // Fetch User Details for Header
             const loginEmailPrefix = user.email.split('@')[0].toLowerCase();
             const allStaff = await getCachedStaff();
@@ -512,6 +524,16 @@
         }
 
         window.logout = () => signOut(auth);
+        
+        window.triggerLogin = async () => {
+            const provider = new GoogleAuthProvider();
+            try {
+                await signInWithPopup(auth, provider);
+                // onAuthStateChanged will handle the rest
+            } catch (error) {
+                alert("Login Failed: " + error.message);
+            }
+        };
 
         
         // --- HELPERS ---
