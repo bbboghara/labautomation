@@ -69,6 +69,7 @@
       "You are an advanced AI assistant with access to the app's source code via a 'Brain' tool.
        - If the user asks to change the Backend (Logic/Server), reply exactly: !UPDATE_BACKEND: <instruction>
        - If the user asks to change the Frontend (UI/HTML), reply exactly: !UPDATE_FRONTEND: <instruction>
+       - If the user asks a general question about the code or app, reply exactly: !ASK_GEMINI: <question>
        Example: User: 'Change the button color to blue' -> You: '!UPDATE_FRONTEND: Change button class to bg-blue-500'"
     -->
 </head>
@@ -250,6 +251,20 @@
         </div>
     </div>
 
+    <!-- AI RESPONSE MODAL -->
+    <div id="aiResponseModal" class="hidden fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[80vh]">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-purple-50">
+                <h2 id="aiResponseTitle" class="text-lg font-bold text-purple-800 flex items-center gap-2"><i class="fa-solid fa-robot"></i> AI Response</h2>
+                <button onclick="document.getElementById('aiResponseModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto bg-slate-50 font-mono text-xs whitespace-pre-wrap" id="aiResponseContent"></div>
+            <div class="p-3 border-t border-gray-200 bg-white text-right">
+                <button onclick="document.getElementById('aiResponseModal').classList.add('hidden')" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-bold text-xs transition">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- CODE SYNC MODAL -->
     <div id="codeSyncModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col h-[600px] overflow-hidden">
@@ -300,10 +315,12 @@ To use it, output these commands exactly:
 
 1. For Frontend (HTML/UI): !UPDATE_FRONTEND: <instruction>
 2. For Backend (Logic): !UPDATE_BACKEND: <instruction>
+3. For General Questions: !ASK_GEMINI: <question>
 
 Example: !UPDATE_FRONTEND: Change header color to blue.
 Do not say "I cannot". Just output the command.</textarea>
                         <button onclick="window.copyBotpressInstructions()" class="bg-purple-600 hover:bg-purple-700 text-white px-3 rounded text-xs font-bold transition flex flex-col items-center justify-center gap-1 w-16"><i class="fa-solid fa-copy"></i><span>COPY</span></button>
+                        <button onclick="window.sendRulesToBot()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 rounded text-xs font-bold transition flex flex-col items-center justify-center gap-1 w-16" title="Send rules to current chat session"><i class="fa-solid fa-paper-plane"></i><span>SEND</span></button>
                     </div>
                 </div>
             </div>
@@ -1566,6 +1583,25 @@ ${prompt}
             alert("Instructions copied! Paste this into Botpress Studio > Agent > Persona.");
         };
 
+        window.sendRulesToBot = () => {
+            const text = document.getElementById('botpressInstructions').value;
+            if (window.botpress) {
+                window.botpress.open();
+                // Send instructions as a user message to 'prime' the bot for this session
+                // This avoids needing to configure the Studio manually for quick tests
+                try { window.botpress.sendMessage(text); } 
+                catch(e) { console.warn(e); alert("Auto-send failed. Please paste the copied text manually."); }
+            } else {
+                alert("Botpress is initializing... please wait.");
+            }
+        };
+
+        window.showGeminiResponse = (title, text) => {
+            document.getElementById('aiResponseTitle').innerHTML = `<i class="fa-solid fa-robot"></i> ${title}`;
+            document.getElementById('aiResponseContent').textContent = text;
+            document.getElementById('aiResponseModal').classList.remove('hidden');
+        };
+
         // --- BOTPRESS AUTOMATION LINK ---
         // This allows the Botpress Chatbot to trigger Gemini 3 Flash functions via special text commands.
         window.initBotpressAutomation = () => {
@@ -1582,11 +1618,20 @@ ${prompt}
                             const prompt = text.split("!UPDATE_BACKEND:")[1].trim();
                             alert(`🤖 Botpress ordered Backend Update:\n"${prompt}"\n\nProcessing...`);
                             window.askBrainToUpdateBackend(prompt).then(msg => alert("Result: " + msg));
+                            window.showGeminiResponse("Processing Backend Update...", "Please wait while the Brain modifies the code...");
+                            window.askBrainToUpdateBackend(prompt).then(msg => window.showGeminiResponse("Backend Update Result", msg));
                         }
                         else if (text.includes("!UPDATE_FRONTEND:")) {
                             const prompt = text.split("!UPDATE_FRONTEND:")[1].trim();
                             alert(`🤖 Botpress ordered Frontend Update:\n"${prompt}"\n\nProcessing...`);
                             window.askBrainToUpdateFrontend(prompt).then(msg => alert("Result: " + msg));
+                            window.showGeminiResponse("Processing Frontend Update...", "Please wait while the Brain modifies the code...");
+                            window.askBrainToUpdateFrontend(prompt).then(msg => window.showGeminiResponse("Frontend Update Result", msg));
+                        }
+                        else if (text.includes("!ASK_GEMINI:")) {
+                            const prompt = text.split("!ASK_GEMINI:")[1].trim();
+                            window.showGeminiResponse("Thinking...", "Consulting the Brain...");
+                            window.askGeminiToImprove(prompt).then(msg => window.showGeminiResponse("Gemini Answer", msg));
                         }
                     });
                 }
