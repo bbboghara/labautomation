@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TEST MODE - Clinical Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; overscroll-behavior: none; border: 5px solid #ef4444; }
+        .glass-panel { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; }
+        
+        /* SCROLLBAR */
+        .chart-scroll::-webkit-scrollbar { height: 12px; width: 12px; }
+        .chart-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+        .chart-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; border: 3px solid #f1f5f9; }
+        
+        .chart-input { width: 100%; text-align: center; background: transparent; border: 1px solid transparent; padding: 6px; font-size: 0.9rem; transition: all 0.2s; }
+        .chart-input:hover { background: #f1f5f9; border-color: #e2e8f0; }
+        .chart-input:focus { background: white; border-color: #0ea5e9; outline: none; box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.1); }
+        
+        .sticky-col { position: sticky; left: 0; background: white; z-index: 10; border-right: 1px solid #f1f5f9; box-shadow: 4px 0 10px -4px rgba(0,0,0,0.05); }
+        .section-header { background-color: #f8fafc; color: #94a3b8; font-weight: 800; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; padding: 8px 12px; text-align: left; position: sticky; left: 0; border-bottom: 1px solid #f1f5f9; }
+        
+        /* List Table Layout Fix */
+        .list-table { table-layout: fixed; width: 100%; }
+        .col-no { width: 50px; }
+        .col-ward { width: 80px; }
+        .col-ga { width: 100px; }
+        .col-dol { width: 60px; }
+        .col-weight { width: 110px; }
+        .col-name { width: auto; }
+
+        .slide-down { animation: slideDown 0.3s ease-out forwards; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Hide X scrollbar for cleaner UI on top panes, but allow scroll */
+        .no-scrollbar-x::-webkit-scrollbar { height: 0px; }
+
+        /* --- PRINT STYLES --- */
+        #printContainer { display: none; }
+        @media print {
+            body { position: static !important; overflow: visible !important; height: auto !important; }
+            body * { visibility: hidden; }
+            #printContainer, #printContainer * { visibility: visible; }
+            #printContainer { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
+            .print-page { width: 100%; height: 100%; page-break-after: always; display: flex; flex-direction: column; background: white; }
+            .print-page:last-child { page-break-after: auto; }
+            
+            table.print-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px; } 
+            table.print-table th, table.print-table td { border: 1px solid black; padding: 4px; word-wrap: break-word; overflow-wrap: break-word; vertical-align: middle; }
+            table.print-table td { white-space: pre-wrap; } 
+            
+            .col-label { width: 15%; background-color: #f0f0f0 !important; font-weight: bold; }
+            .print-header-box { border: 1px solid black; padding: 8px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: flex-start; }
+            .static-box { border: 1px solid black; padding: 2px 5px; min-width: 100px; display: inline-block; text-align: center; }
+            #mobileMenuBtn, #mobileMenu { display: none !important; }
+        }
+    </style>
+    <style id="page-orientation-style"></style>
+    <!-- Botpress Webchat Scripts -->
+    <script src="https://cdn.botpress.cloud/webchat/v3.5/inject.js"></script>
+    <script src="https://files.bpcontent.cloud/2025/12/27/15/20251227155648-26TFJPXA.js" defer></script>
+</head>
+<body class="fixed inset-0 flex flex-col overflow-hidden text-slate-800">
+
+    <header class="bg-red-800 text-white p-3 shadow-sm shrink-0 z-20 no-print">
+        <div class="max-w-full mx-auto flex justify-between items-center relative">
+            
+            <div class="flex items-center gap-3">
+                <a href="../dashboard.html" class="bg-red-800 p-2 rounded-lg text-red-200 hover:bg-red-700 transition">
+                    <i class="fa-solid fa-heart-pulse text-xl"></i>
+                </a>
+                <div>
+                    <h1 class="text-lg font-bold text-red-50 leading-tight uppercase">TEST MODE - Ix & Mx</h1>
+                    <div class="flex items-center gap-2 text-[10px]">
+                        <span id="connectionStatus" class="text-gray-400 font-bold">Connecting...</span>
+                        <span class="text-gray-400">|</span>
+                        <span id="currentUserDisplay" class="font-bold text-red-300">...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="navBar" class="hidden md:flex gap-2 bg-red-900/50 p-1 rounded-lg md:absolute md:left-1/2 md:-translate-x-1/2">
+                <a href="../dashboard.html" class="px-3 py-1.5 rounded text-xs font-bold text-red-200 hover:bg-red-800 hover:text-white transition">Dashboard</a>
+                <a href="../counseling.html" class="px-3 py-1.5 rounded text-xs font-bold text-red-200 hover:bg-teal-600 hover:text-white transition">Handover</a>
+                <a href="#" class="px-3 py-1.5 rounded text-xs font-bold bg-red-600 text-white shadow-sm">Clinical (TEST)</a>
+                <a href="../screeningnew.html" class="px-3 py-1.5 rounded text-xs font-bold text-red-200 hover:bg-indigo-600 hover:text-white transition">Screening</a>
+                <a href="../patientlist.html" class="px-3 py-1.5 rounded text-xs font-bold text-red-200 hover:bg-yellow-600 hover:text-white transition">Billing</a>
+                <a href="../patient_view.html" class="px-3 py-1.5 rounded text-xs font-bold text-red-200 hover:bg-purple-600 hover:text-white transition">All in One</a>
+                
+                <!-- INBOX BUTTON -->
+                <button onclick="window.toggleInbox()" class="ml-2 px-3 py-1.5 rounded text-xs font-bold bg-slate-800 text-white hover:bg-slate-700 transition flex items-center gap-2">
+                    <i class="fa-solid fa-inbox"></i> Inbox <span id="inboxCount" class="bg-red-500 text-white px-1.5 rounded-full text-[10px] hidden">0</span>
+                </button>
+                <button onclick="window.toggleNotifications()" class="ml-2 px-3 py-1.5 rounded text-xs font-bold bg-slate-800 text-white hover:bg-slate-700 transition flex items-center gap-2">
+                    <i class="fa-solid fa-bell"></i> <span class="hidden md:inline">Updates</span>
+                </button>
+                <button onclick="window.openBotpress()" class="ml-2 px-3 py-1.5 rounded text-xs font-bold bg-purple-700 text-white hover:bg-purple-600 transition flex items-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-robot"></i> AI Assistant
+                </button>
+            </div>
+
+            <div id="desktopActions" class="hidden md:flex items-center gap-2">
+                <button onclick="window.openCodeSync()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 px-3 py-1.5 rounded-lg font-medium transition shadow-sm flex items-center gap-2 text-xs mr-2" title="Update Backend Code Context">
+                    <i class="fa-solid fa-code"></i> Sync Code
+                </button>
+                <button onclick="window.clearAllCharts()" class="bg-red-100 hover:bg-red-200 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg font-medium transition shadow-sm flex items-center gap-2 text-xs mr-2" title="Clear All Clinical Charts">
+                    <i class="fa-solid fa-skull"></i> Clear Charts
+                </button>
+                <button onclick="window.triggerBulkAdmit()" class="bg-blue-600 hover:bg-blue-700 text-white border border-blue-500 px-3 py-1.5 rounded-lg font-medium transition shadow-sm flex items-center gap-2 text-xs mr-2" title="Import from Excel">
+                    <i class="fa-solid fa-file-excel"></i> Bulk Import
+                </button>
+                <button onclick="window.openAdmitModal()" class="bg-green-600 hover:bg-green-700 text-white border border-green-500 px-3 py-1.5 rounded-lg font-medium transition shadow-sm flex items-center gap-2 text-xs mr-2" title="Admit Patient">
+                    <i class="fa-solid fa-user-plus"></i> Admit
+                </button>
+                <button onclick="logout()" class="text-red-300 hover:text-red-400 px-2 transition" title="Logout">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+
+            <button id="mobileMenuBtn" onclick="toggleMobileMenu()" class="md:hidden text-white text-xl p-2 hover:bg-red-800 rounded-lg transition">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Mobile Menu Overlay -->
+    <div id="mobileMenu" class="hidden fixed inset-0 z-50 bg-slate-900/95 backdrop-blur-sm flex flex-col p-6 md:hidden transition-all duration-300">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-2xl font-bold text-white tracking-wide">Menu</h2>
+            <button onclick="toggleMobileMenu()" class="text-white text-2xl p-2 hover:bg-slate-800 rounded-full"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="flex flex-col gap-3 overflow-y-auto">
+            <a href="../dashboard.html" class="p-4 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 hover:text-white transition flex items-center gap-3"><i class="fa-solid fa-house-medical w-6"></i> Dashboard</a>
+            <a href="../counseling.html" class="p-4 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-teal-600 hover:text-white transition flex items-center gap-3"><i class="fa-solid fa-book w-6"></i> Handover</a>
+            <a href="#" class="p-4 rounded-xl bg-red-600 text-white font-bold shadow-lg flex items-center gap-3"><i class="fa-solid fa-heart-pulse w-6"></i> Clinical (TEST)</a>
+            <a href="../screeningnew.html" class="p-4 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-indigo-600 hover:text-white transition flex items-center gap-3"><i class="fa-solid fa-user-shield w-6"></i> Screening</a>
+            <a href="../patientlist.html" class="p-4 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-yellow-600 hover:text-white transition flex items-center gap-3"><i class="fa-solid fa-file-invoice-dollar w-6"></i> Billing</a>
+            <a href="../patient_view.html" class="p-4 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-purple-600 hover:text-white transition flex items-center gap-3"><i class="fa-solid fa-layer-group w-6"></i> All in One</a>
+            <button onclick="window.toggleInbox(); toggleMobileMenu()" class="w-full p-4 rounded-xl bg-slate-700 text-white font-bold hover:bg-slate-600 transition flex items-center gap-3 text-left"><i class="fa-solid fa-inbox w-6"></i> Lab Inbox</button>
+            <button onclick="window.toggleNotifications(); toggleMobileMenu()" class="w-full p-4 rounded-xl bg-slate-700 text-white font-bold hover:bg-slate-600 transition flex items-center gap-3 text-left mt-2"><i class="fa-solid fa-bell w-6"></i> Daily Updates</button>
+            <button onclick="window.openBotpress(); toggleMobileMenu()" class="w-full p-4 rounded-xl bg-purple-700 text-white font-bold hover:bg-purple-600 transition flex items-center gap-3 text-left mt-2"><i class="fa-solid fa-robot w-6"></i> AI Assistant</button>
+            <button onclick="window.openCodeSync(); toggleMobileMenu()" class="w-full p-4 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 transition flex items-center gap-3 text-left mt-2"><i class="fa-solid fa-code w-6"></i> Sync Backend Code</button>
+            <button onclick="window.openAdmitModal(); toggleMobileMenu()" class="w-full p-4 rounded-xl bg-green-700 text-white font-bold hover:bg-green-600 transition flex items-center gap-3 text-left mt-2"><i class="fa-solid fa-user-plus w-6"></i> Admit Patient</button>
+            <button onclick="window.triggerBulkAdmit(); toggleMobileMenu()" class="w-full p-4 rounded-xl bg-blue-700 text-white font-bold hover:bg-blue-600 transition flex items-center gap-3 text-left mt-2"><i class="fa-solid fa-file-excel w-6"></i> Bulk Import</button>
+            <button onclick="window.clearAllCharts(); toggleMobileMenu()" class="w-full p-4 rounded-xl bg-red-100 text-red-600 font-bold hover:bg-red-200 transition flex items-center gap-3 text-left mt-2"><i class="fa-solid fa-skull w-6"></i> Clear All Charts</button>
+            
+            <div class="h-px bg-slate-700 my-2"></div>
+            
+            <div class="mt-auto pt-4">
+                <button onclick="logout()" class="w-full p-4 rounded-xl border border-red-400 text-red-400 font-bold hover:bg-red-400 hover:text-white transition flex items-center justify-center gap-2"><i class="fa-solid fa-power-off"></i> Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 overflow-hidden p-2 sm:p-4 bg-slate-50">
+        <div class="max-w-full mx-auto h-full flex flex-col">
+            
+            <div class="glass-panel flex-1 overflow-hidden flex flex-col">
+                <div class="bg-slate-100 border-b border-gray-200 p-3 flex justify-between items-center">
+                    <h2 class="text-xs font-bold uppercase text-slate-500 tracking-wider">Active Patients (TEST DATA)</h2>
+                    <span id="patientCount" class="bg-white border px-2 py-1 rounded text-xs font-bold text-slate-600">0</span>
+                </div>
+                <div class="overflow-auto flex-1 bg-white hidden md:block">
+                    <table class="list-table text-left border-collapse">
+                        <thead class="bg-slate-50 sticky top-0 z-10 text-xs uppercase text-slate-500 font-bold shadow-sm">
+                            <tr>
+                                <th class="p-3 border-b col-no text-center">No</th>
+                                <th class="p-3 border-b col-ward">Ward</th>
+                                <th class="p-3 border-b col-name">Patient Name (Click to Chart)</th>
+                                <th class="p-3 border-b col-ga text-center">GA / CGA</th>
+                                <th class="p-3 border-b col-dol text-center">DOL</th>
+                                <th class="p-3 border-b col-weight text-right">Weight</th>
+                                <th class="p-3 border-b w-10"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="patientTableBody" class="text-sm divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+                <div id="mobileCardContainer" class="md:hidden flex-1 overflow-y-auto p-2 space-y-3 pb-20 block bg-slate-50"></div>
+            </div>
+        </div>
+    </main>
+
+    <div id="printContainer"></div>
+    <input type="file" id="bulkAdmitInput" accept=".xlsx, .xls" class="hidden" onchange="window.processBulkAdmit(this)">
+
+    <!-- INBOX MODAL -->
+    <div id="inboxModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-slate-50">
+                <h2 class="text-lg font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-inbox text-sky-600"></i> Lab Inbox</h2>
+                <div>
+                    <button onclick="window.rejectAllInboxItems()" class="px-3 py-1 rounded bg-red-100 text-red-600 hover:bg-red-200 text-xs font-bold transition mr-4">Reject All</button>
+                    <button onclick="window.toggleInbox()" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+            <div id="inboxList" class="overflow-y-auto p-4 space-y-3 bg-slate-100 flex-1">
+                <!-- Inbox Items Injected Here -->
+                <div class="text-center text-gray-400 py-10">No pending reports</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOTIFICATIONS MODAL -->
+    <div id="notificationModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden max-h-[80vh]">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-slate-50">
+                <h2 class="text-lg font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-bell text-yellow-500"></i> Today's Updates</h2>
+                <button onclick="window.toggleNotifications()" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="notificationList" class="overflow-y-auto p-4 space-y-3 bg-slate-50 flex-1"></div>
+        </div>
+    </div>
+
+    <!-- CODE SYNC MODAL -->
+    <div id="codeSyncModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col h-[600px] overflow-hidden">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-slate-50">
+                <h2 class="text-lg font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-code text-blue-600"></i> Sync Source Code</h2>
+                <button onclick="document.getElementById('codeSyncModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-4 flex-1 flex flex-col bg-slate-50 overflow-y-auto">
+                <p class="text-xs text-gray-500 mb-4">Configure GitHub access to allow the AI to read and update your source code.</p>
+                
+                <div class="space-y-3 mb-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">GitHub Personal Access Token (Repo Scope)</label>
+                        <input type="password" id="githubTokenInput" class="w-full p-2 border border-gray-300 rounded text-xs font-mono focus:border-blue-500 outline-none" placeholder="ghp_...">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Backend File (code.js)</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="githubUrlInput" class="flex-1 p-2 border border-gray-300 rounded text-xs font-mono focus:border-blue-500 outline-none" placeholder="https://github.com/.../code.js">
+                            <button onclick="window.fetchFromGithub('backend')" class="bg-slate-700 hover:bg-slate-800 text-white px-3 rounded text-xs font-bold transition">Fetch</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Frontend File (testman.html)</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="githubFrontendUrlInput" class="flex-1 p-2 border border-gray-300 rounded text-xs font-mono focus:border-blue-500 outline-none" placeholder="https://github.com/.../testman.html">
+                            <button onclick="window.fetchFromGithub('frontend')" class="bg-slate-700 hover:bg-slate-800 text-white px-3 rounded text-xs font-bold transition">Fetch</button>
+                        </div>
+                    </div>
+                </div>
+
+                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Backend Context (Cached)</label>
+                <textarea id="backendCodeInput" class="flex-1 p-4 border border-gray-300 rounded-lg font-mono text-[10px] bg-white resize-none focus:border-blue-500 outline-none mb-3" placeholder="// Paste code.js content here..."></textarea>
+                
+                <button onclick="window.saveBackendCode()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg transition">SAVE CONFIGURATION</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIT PATIENT MODAL -->
+    <div id="admitModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-slate-50">
+                <h2 class="text-lg font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-user-plus text-green-600"></i> Admit Patient</h2>
+                <button onclick="window.closeAdmitModal()" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-6 space-y-4 overflow-y-auto max-h-[80vh]">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Serial No</label>
+                        <input type="number" id="admitSerial" class="w-full p-2 border rounded-lg text-sm font-bold focus:border-green-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Ward</label>
+                        <select id="admitWard" class="w-full p-2 border rounded-lg text-sm font-bold focus:border-green-500 outline-none">
+                            <option value="N1">N1</option><option value="N2">N2</option><option value="N3">N3</option>
+                            <option value="N4">N4</option><option value="PICU">PICU</option>
+                            <option value="NCH NICU">NCH NICU</option><option value="NCH PICU">NCH PICU</option>
+                            <option value="NCH Ward">NCH Ward</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Patient Name</label>
+                    <input type="text" id="admitName" class="w-full p-2 border rounded-lg text-sm font-bold focus:border-green-500 outline-none" placeholder="e.g. Baby of X">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Date of Birth</label>
+                        <input type="date" id="admitDob" class="w-full p-2 border rounded-lg text-sm font-bold focus:border-green-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Time of Birth</label>
+                        <input type="time" id="admitTob" class="w-full p-2 border rounded-lg text-sm font-bold focus:border-green-500 outline-none">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Birth Weight (kg)</label>
+                        <input type="number" step="0.001" id="admitWeight" class="w-full p-2 border rounded-lg text-sm font-bold focus:border-green-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Gender</label>
+                        <select id="admitGender" class="w-full p-2 border rounded-lg text-sm font-bold focus:border-green-500 outline-none">
+                            <option value="Male">Male</option><option value="Female">Female</option><option value="Ambiguous">Ambiguous</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">GA Weeks</label>
+                        <input type="number" id="admitGaWeeks" class="w-full p-2 border rounded-lg text-sm font-bold focus:border-green-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">GA Days</label>
+                        <input type="number" id="admitGaDays" class="w-full p-2 border rounded-lg text-sm font-bold focus:border-green-500 outline-none" value="0">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Type</label>
+                        <select id="admitType" class="w-full p-2 border rounded-lg text-sm font-bold focus:border-green-500 outline-none">
+                            <option value="Preterm">Preterm</option><option value="Term">Term</option><option value="Pediatric">Pediatric</option>
+                        </select>
+                    </div>
+                </div>
+                <button onclick="window.saveNewPatient()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow-lg transition mt-4">ADMIT PATIENT</button>
+            </div>
+        </div>
+    </div>
+
+    <template id="chartTemplate">
+        <div class="bg-slate-50 border-y border-slate-200 shadow-inner p-2 md:p-4 slide-down">
+            <div class="flex flex-col h-full max-h-[65vh] w-full max-w-[calc(100vw-20px)] md:max-w-[calc(100vw-60px)] mx-auto">
+                <div class="flex flex-col md:flex-row justify-between items-stretch md:items-start mb-2 gap-2 no-print">
+                    <div class="flex-1 bg-white p-1.5 rounded border border-gray-200 shadow-sm flex flex-wrap items-center gap-2">
+                        <select class="chart-add-row-select text-xs font-bold border rounded p-1.5 bg-slate-50 hover:bg-white text-slate-700 outline-none flex-1 md:flex-none min-w-[90px]">
+                            <option value="" disabled selected>+ Add Row</option>
+                            <optgroup label="Investigations">
+                                <option value="Hb">Hb</option><option value="TLC">TLC</option><option value="Platelets">Platelets</option>
+                                <option value="CRP">CRP</option><option value="Na/K/Cl">Na / K / Cl</option>
+                                <option value="I. Ca">I. Ca (Ionised Calcium)</option><option value="NRBC">NRBC</option>
+                                <option value="Sr.Bili(T/D)">Sr.Bili (T/D)</option><option value="PT/INR">PT/INR</option>
+                                <option value="APTT">APTT</option><option value="Creatinine">Creatinine</option>
+                                <option value="SGPT">SGPT</option><option value="Blood CS">Blood CS</option>
+                                <option value="BAL CS">BAL CS</option><option value="Tip CS">Tip CS</option>
+                                <option value="POCUS">POCUS</option>
+                                <option value="CUSTOM_IX">+ Custom Ix</option>
+                            </optgroup>
+                            <optgroup label="Medicines">
+                                <option value="Antibiotics">Antibiotics</option><option value="Anti Apnea">Anti Apnea</option>
+                                <option value="Inotropes">Inotropes</option><option value="Blood products">Blood products</option>
+                                <option value="CUSTOM_MX">+ Custom Mx</option>
+                            </optgroup>
+                        </select>
+                        <div class="relative flex-1 md:flex-none">
+                            <input type="date" class="hidden-date-picker absolute opacity-0 w-0 h-0">
+                            <button class="btn-trigger-date text-xs font-bold bg-slate-100 hover:bg-slate-200 border rounded px-3 py-1.5 w-full flex items-center justify-center gap-1">
+                                <i class="fa-solid fa-calendar-plus"></i> <span class="hidden sm:inline">Add Date</span><span class="sm:hidden">Date</span>
+                            </button>
+                        </div>
+                        <div class="flex gap-1 border-l pl-2 ml-auto md:ml-2">
+                            <button class="btn-print-portrait text-[10px] font-bold bg-slate-700 hover:bg-slate-800 text-white border rounded px-2 py-1.5">Port</button>
+                            <button class="btn-print-landscape text-[10px] font-bold bg-slate-700 hover:bg-slate-800 text-white border rounded px-2 py-1.5 ml-1">Land</button>
+                        </div>
+                        <div class="text-xs text-gray-400 italic flex items-center gap-1 border-l pl-2">
+                            <button class="btn-delete-chart text-red-300 hover:text-red-500" title="Clear Chart"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>
+                    <div class="bg-yellow-50 border border-yellow-200 rounded p-1.5 shadow-sm flex flex-row md:flex-col gap-2 shrink-0 items-center justify-between md:w-48">
+                        <div class="flex items-center gap-2 flex-1">
+                            <label class="text-[10px] font-bold text-yellow-800 uppercase whitespace-nowrap">BG</label>
+                            <input type="text" class="input-blood-group w-full bg-white border border-yellow-200 rounded px-2 py-1 text-xs font-bold text-center">
+                        </div>
+                        <div class="w-px h-4 bg-yellow-200 md:hidden"></div>
+                        <div class="flex items-center gap-2 flex-1">
+                            <label class="text-[10px] font-bold text-yellow-800 uppercase whitespace-nowrap">G6PD</label>
+                            <select class="input-g6pd w-full bg-white border border-yellow-200 rounded px-1 py-1 text-xs font-bold text-gray-700">
+                                <option value="">--</option><option value="Normal">Normal</option><option value="Deficient">Deficient</option><option value="Pending">Pending</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="overflow-auto chart-scroll border rounded bg-white relative max-h-[400px]">
+                    <!-- Content injected by JS based on View Mode -->
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        window.toggleMobileMenu = () => {
+            const menu = document.getElementById('mobileMenu');
+            menu.classList.toggle('hidden');
+        };
+        window.toggleInbox = () => {
+            const modal = document.getElementById('inboxModal');
+            modal.classList.toggle('hidden');
+        };
+        window.toggleNotifications = () => {
+            const modal = document.getElementById('notificationModal');
+            modal.classList.toggle('hidden');
+        };
+        window.openBotpress = () => {
+            if (window.botpress) {
+                window.botpress.open();
+            } else if (window.botpressWebChat) {
+                window.botpressWebChat.sendEvent({ type: 'show' });
+            } else {
+                alert("Botpress is initializing or not configured. Please check the script URL.");
+            }
+        };
+    </script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+        import { getFirestore, collection, doc, onSnapshot, setDoc, getDoc, getDocs, deleteDoc, addDoc, enableIndexedDbPersistence, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+        import { getVertexAI, getGenerativeModel } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-vertexai.js";
+
+        // CONFIG (Matches Dashboard)
+        const config = {
+            apiKey: "AIzaSyDRjC5kU49I5DbVKdTbAySGNjhm35fD0UA",
+            authDomain: "nicucounselingsheet.firebaseapp.com",
+            projectId: "nicucounselingsheet",
+            storageBucket: "nicucounselingsheet.firebasestorage.app",
+            messagingSenderId: "410109672516",
+            appId: "1:410109672516:web:7a820dac891febb28e5011"
+        };
+
+        const app = initializeApp(config);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        enableIndexedDbPersistence(db).catch((err) => console.warn("Persistence failed:", err.code));
+        
+        // Initialize Vertex AI (Gemini)
+        const vertexAI = getVertexAI(app);
+        // Using gemini-3.0-flash for Brain function as requested
+        const geminiModel = getGenerativeModel(vertexAI, { model: "gemini-3.0-flash" });
+        
+        // *** TEST MODE CONFIGURATION ***
+        const COLLECTION_ROOT = 'nicu-dashboard-hybrid-test'; // CHANGED TO TEST PATH
+        const PATH_PATIENTS = 'patients';
+        const PATH_STAFF = 'staff_directory';
+        const PATH_CHARTS = 'medical_charts';
+        const PATH_INBOX = 'lab_inbox';
+        const PATH_NOTIFICATIONS = 'notifications';
+        const PATH_BRAIN = 'config/gemini_brain'; // New Path for AI Memory
+        // Keep staff path pointing to PRODUCTION so you can log in with existing users
+        const staffPath = 'artifacts/nicu-dashboard-hybrid/public/data/staff_directory';
+
+        let patientsData = [];
+        let activeChartId = null;
+        let activeChartContainerId = null;
+        let activeChartData = null;
+        let activeChartUnsubscribe = null;
+        let inboxData = [];
+
+        const STD_IX = ["Hb","TLC","Platelets","CRP","Na/K/Cl","I. Ca","NRBC","Sr.Bili(T/D)","PT/INR","APTT","Creatinine","SGPT","Blood CS","BAL CS","Tip CS","POCUS"];
+        const STD_MX = ["Antibiotics","Blood products","Anti Apnea","Inotropes"];
+        const DEFAULT_ROWS = [
+            { label: "Hb", category: "Investigations", data: {} },
+            { label: "TLC", category: "Investigations", data: {} },
+            { label: "Platelets", category: "Investigations", data: {} },
+            { label: "CRP", category: "Investigations", data: {} },
+            { label: "Na/K/Cl", category: "Investigations", data: {} }
+        ];
+
+        async function getCachedStaff() {
+            const CACHE_KEY = 'staff_directory_cache';
+            const cached = localStorage.getItem(CACHE_KEY);
+            if (cached) {
+                const { timestamp, data } = JSON.parse(cached);
+                if (Date.now() - timestamp < 86400000) return data;
+            }
+            const snap = await getDocs(collection(db, staffPath));
+            const data = [];
+            snap.forEach(d => data.push({id: d.id, ...d.data()}));
+            localStorage.setItem(CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data }));
+            return data;
+        }
+
+        // 1. GLOBAL AUTH CHECK
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = "../index.html"; 
+                return;
+            }
+            
+            // Fetch User Details for Header
+            const loginEmailPrefix = user.email.split('@')[0].toLowerCase();
+            const allStaff = await getCachedStaff();
+            const foundUser = allStaff.find(s => s.id.toLowerCase() === loginEmailPrefix);
+
+            if (foundUser) {
+                document.getElementById('currentUserDisplay').textContent = foundUser.name;
+                document.getElementById('connectionStatus').textContent = "● Online (TEST)";
+                document.getElementById('connectionStatus').className = "text-[10px] text-green-500 font-bold";
+            }
+
+            // Start Listeners
+            startApp();
+        });
+
+        function startApp() {
+            onSnapshot(collection(db, 'artifacts', COLLECTION_ROOT, 'public', 'data', PATH_PATIENTS), (snap) => {
+                patientsData = []; snap.forEach(d => patientsData.push({id: d.id, ...d.data()}));
+                renderPatientList();
+            });
+            onSnapshot(collection(db, 'artifacts', COLLECTION_ROOT, 'public', 'data', PATH_INBOX), (snap) => {
+                inboxData = []; snap.forEach(d => inboxData.push({id: d.id, ...d.data()}));
+                renderInbox();
+            });
+            startNotificationListener();
+        }
+
+        window.logout = () => signOut(auth);
+
+        
+        // --- HELPERS ---
+        function calculateDOL(dob) { if(!dob) return '-'; return Math.floor((new Date().setHours(0,0,0,0) - new Date(dob).setHours(0,0,0,0))/86400000) + 1; }
+        function calculateCGA(dob, w, d) {
+            if(!dob) return {w:'-', d:'-'};
+            const tot = (parseInt(w)*7) + parseInt(d) + (calculateDOL(dob)-1);
+            return {w: Math.floor(tot/7), d: tot%7};
+        }
+        function getRowRank(r) { 
+            if(r.category === 'Investigations') return STD_IX.indexOf(r.label) === -1 ? 1000 : STD_IX.indexOf(r.label);
+            return STD_MX.indexOf(r.label) === -1 ? 3000 : 2000 + STD_MX.indexOf(r.label);
+        }
+        function calculatePediatricAge(dob) {
+            if (!dob) return '-';
+            const d1 = new Date(dob); const d2 = new Date();
+            let years = d2.getFullYear() - d1.getFullYear();
+            let months = d2.getMonth() - d1.getMonth();
+            let days = d2.getDate() - d1.getDate();
+            if (days < 0) { months--; const lastMonth = new Date(d2.getFullYear(), d2.getMonth(), 0); days += lastMonth.getDate(); }
+            if (months < 0) { years--; months += 12; }
+            if (years >= 1) {
+                return `${years}y ${months}m`;
+            } else {
+                return `${months}m ${days}d`;
+            }
+        }
+        function parseDateKey(dateStr) {
+            const base = dateStr.split(' ')[0];
+            const suffixMatch = dateStr.match(/\((\d+)\)/);
+            return { base, suffix: suffixMatch ? parseInt(suffixMatch[1]) : 0 };
+        }
+
+        // --- UI RENDER LIST ---
+        function renderPatientList() {
+            // REAL-TIME FIX: Cleanup active chart listener before destroying DOM
+            if (activeChartUnsubscribe) {
+                activeChartUnsubscribe();
+                activeChartUnsubscribe = null;
+            }
+
+            const tbody = document.getElementById('patientTableBody');
+            const mobileContainer = document.getElementById('mobileCardContainer');
+            tbody.innerHTML = '';
+            mobileContainer.innerHTML = '';
+            document.getElementById('patientCount').textContent = patientsData.length;
+            
+            const wardOrder = ["N1", "N2", "N3", "PICU", "N4", "NCH NICU", "NCH PICU", "NCH Ward", "NCH ROOM1", "NCH ROOM2"];
+            const sorted = [...patientsData].sort((a,b) => {
+                const idxA = wardOrder.indexOf(a.ward || ""); const idxB = wardOrder.indexOf(b.ward || "");
+                if (idxA !== idxB) return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+                return (parseInt(a.customSerial)||999) - (parseInt(b.customSerial)||999);
+            });
+
+            sorted.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 border-b border-gray-100 group transition-colors";
+                
+                let dol = calculateDOL(p.dob);
+                let gaDisplay = '';
+                if (p.termStatus === 'Pediatric') {
+                    dol = calculatePediatricAge(p.dob);
+                    gaDisplay = '<span class="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-bold">Pediatric</span>';
+                } else {
+                    const cgaObj = calculateCGA(p.dob, p.birthGaWeeks, p.birthGaDays);
+                    gaDisplay = (p.termStatus === 'Term') ? '<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Term</span>' : `<div class="font-bold text-blue-700 text-sm leading-tight">${cgaObj.w}w ${cgaObj.d}d</div><div class="text-[10px] text-gray-400">B: ${p.birthGaWeeks}w</div>`;
+                }
+                
+                let diffText = ""; if(p.currentWeight && p.prevWeight) { const diff = p.currentWeight - p.prevWeight; if(Math.abs(diff) > 0.001) diffText = (diff > 0 ? "↑ " : "↓ ") + Math.round(Math.abs(diff)*1000) + "g"; }
+                const weightDisplay = `<div class="flex flex-col items-end"><div class="flex items-baseline gap-1"><span class="text-lg font-bold">${p.currentWeight ? p.currentWeight.toFixed(3) : '-'}</span><span class="text-[10px] font-bold text-sky-600">${diffText}</span></div><div class="text-[10px] text-gray-400">B: ${p.birthWeight ? p.birthWeight.toFixed(3) : '-'}</div></div>`;
+
+                tr.innerHTML = `
+                    <td class="p-3 text-center text-slate-400 col-no font-bold">${p.customSerial || '-'}</td>
+                    <td class="p-3 text-slate-600 col-ward font-medium">${p.ward || ''}</td>
+                    <td class="p-3 font-bold cursor-pointer hover:text-sky-600 col-name truncate" onclick="window.toggleChart('${p.id}')">
+                        <div class="flex items-center gap-2 truncate">${p.name}<i class="fa-solid fa-chevron-down text-[10px] text-gray-300"></i></div>
+                    </td>
+                    <td class="p-3 text-center align-top col-ga">${gaDisplay}</td>
+                    <td class="p-3 text-center align-top col-dol"><span class="bg-indigo-100 text-indigo-700 px-2 py-1 rounded text-xs font-bold">${dol}</span></td>
+                    <td class="p-3 text-right font-mono align-top col-weight">${weightDisplay}</td>
+                    <td class="p-3 text-center align-top">
+                        <button onclick="event.stopPropagation(); window.deletePatient('${p.id}', '${p.name.replace(/'/g, "\\'")}')" class="text-slate-300 hover:text-red-500 transition p-1" title="Delete Patient">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+                const trChart = document.createElement('tr');
+                trChart.id = `row-chart-${p.id}`;
+                trChart.className = "hidden bg-slate-50 border-b";
+                trChart.innerHTML = `<td colspan="6" class="p-0 chart-container"></td>`;
+                tbody.appendChild(trChart);
+
+                // Mobile Card
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden";
+                card.className = "bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative";
+                card.innerHTML = `
+                    <div onclick="window.toggleChart('${p.id}')" class="p-4 flex justify-between items-start cursor-pointer bg-white active:bg-gray-50 transition select-none">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="bg-sky-100 text-sky-800 text-[10px] font-bold px-2 py-0.5 rounded border border-sky-200">${p.ward}</span>
+                                <span class="text-xs font-bold text-gray-400">#${p.customSerial || '-'}</span>
+                            </div>
+                            <h3 class="font-bold text-gray-800 text-base">${p.name}</h3>
+                            <div class="text-xs text-gray-500 mt-0.5">${gaDisplay}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-lg font-bold text-slate-700">${p.currentWeight ? p.currentWeight.toFixed(3) : '--'}</div>
+                            <div class="text-[10px] text-gray-400">DOL ${dol}</div>
+                        </div>
+                    </div>
+                    <button onclick="event.stopPropagation(); window.deletePatient('${p.id}', '${p.name.replace(/'/g, "\\'")}')" class="absolute top-2 right-2 text-slate-300 hover:text-red-500 p-2 z-10">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                    <div id="mobile-chart-${p.id}" class="hidden border-t border-gray-200 bg-slate-50">
+                        <div class="chart-container"></div>
+                    </div>
+                `;
+                mobileContainer.appendChild(card);
+            });
+
+            // REAL-TIME FIX: Restore active chart view if the patient still exists
+            if (activeChartId) {
+                const isMobile = window.innerWidth < 768;
+                const targetId = isMobile ? `mobile-chart-${activeChartId}` : `row-chart-${activeChartId}`;
+                const targetRow = document.getElementById(targetId);
+                if (targetRow) {
+                    targetRow.classList.remove('hidden');
+                    activeChartContainerId = targetId; // Ensure container ID matches current DOM
+                    window.initChartUI(activeChartId); // Re-bind UI and Listeners
+                } else {
+                    activeChartId = null; // Patient was removed
+                }
+            }
+        }
+
+        window.toggleChart = async (patientId) => {
+            const isMobile = window.innerWidth < 768;
+            const targetId = isMobile ? `mobile-chart-${patientId}` : `row-chart-${patientId}`;
+
+            if (activeChartId && (activeChartId !== patientId || activeChartContainerId !== targetId)) {
+                const old = document.getElementById(activeChartContainerId);
+                if(old) { old.classList.add('hidden'); old.querySelector('.chart-container').innerHTML = ''; }
+                if (activeChartUnsubscribe) activeChartUnsubscribe();
+                activeChartId = null;
+                activeChartContainerId = null;
+            }
+            
+            const targetRow = document.getElementById(targetId);
+            if (targetRow.classList.contains('hidden')) {
+                activeChartId = patientId;
+                activeChartContainerId = targetId;
+                targetRow.classList.remove('hidden');
+                window.initChartUI(patientId);
+            } else {
+                targetRow.classList.add('hidden');
+                targetRow.querySelector('.chart-container').innerHTML = '';
+                if (activeChartUnsubscribe) activeChartUnsubscribe();
+                activeChartId = null;
+                activeChartContainerId = null;
+            }
+        };
+
+        window.initChartUI = function(patientId) {
+            const container = document.getElementById(activeChartContainerId).querySelector('.chart-container');
+            if (container.innerHTML !== '') return;
+
+            const template = document.getElementById('chartTemplate').content.cloneNode(true);
+            
+            template.querySelector('.chart-add-row-select').onchange = (e) => window.addNewRow(patientId, e.target.value);
+            const dateInput = template.querySelector('.hidden-date-picker');
+            template.querySelector('.btn-trigger-date').onclick = () => dateInput.showPicker ? dateInput.showPicker() : dateInput.click();
+            dateInput.onchange = (e) => { if(e.target.value) window.addNewDate(patientId, e.target.value); };
+
+            template.querySelector('.input-blood-group').onchange = (e) => window.updateStaticField(patientId, 'bloodGroup', e.target.value);
+            template.querySelector('.input-g6pd').onchange = (e) => window.updateStaticField(patientId, 'g6pd', e.target.value);
+            template.querySelector('.btn-delete-chart').onclick = () => window.clearChart(patientId);
+            template.querySelector('.btn-print-portrait').onclick = () => window.printPatientChart(patientId, 'portrait');
+            template.querySelector('.btn-print-landscape').onclick = () => window.printPatientChart(patientId, 'landscape');
+
+            container.appendChild(template);
+            activeChartUnsubscribe = onSnapshot(doc(db, 'artifacts', COLLECTION_ROOT, 'public', 'data', PATH_CHARTS, patientId), (snap) => {
+                activeChartData = snap.exists() ? snap.data() : { dates: [], rows: JSON.parse(JSON.stringify(DEFAULT_ROWS)), static: { bloodGroup: "", g6pd: "" } };
+                window.renderChartData(patientId);
+            });
+        };
+
+        window.renderChartData = function(patientId) {
+            const container = document.getElementById(activeChartContainerId);
+            if (!container) return;
+            
+            const staticInfo = activeChartData.static || {};
+            container.querySelector('.input-blood-group').value = staticInfo.bloodGroup || "";
+            container.querySelector('.input-g6pd').value = staticInfo.g6pd || "";
+
+            const scrollArea = container.querySelector('.chart-scroll');
+            scrollArea.innerHTML = ''; // Clear current view
+            
+            // Re-order dates strictly DD/MM/YY
+            activeChartData.dates.sort((a,b) => {
+                const sA = parseDateKey(a), sB = parseDateKey(b);
+                return sA.base.localeCompare(sB.base) || sA.suffix - sB.suffix;
+            });
+
+            window.renderGridView(patientId, scrollArea);
+        };
+
+        // --- VIEW RENDERERS ---
+        window.renderGridView = (patientId, container) => {
+            container.innerHTML = '';
+            container.style.overflow = 'hidden';
+            container.className = "bg-white relative flex flex-col h-[84vh] border rounded";
+
+            // 1. Header (Synced Scroll)
+            const headerContainer = document.createElement('div');
+            headerContainer.className = "overflow-x-hidden border-b border-slate-200 shrink-0 bg-white z-20";
+            const headerRow = document.createElement('div');
+            headerRow.className = "flex min-w-max";
+            
+            const pHeader = document.createElement('div');
+            pHeader.className = "p-3 border-r border-slate-100 sticky-col w-24 shrink-0 text-left bg-white text-[10px] uppercase tracking-wider font-bold text-slate-500 z-30";
+            pHeader.textContent = "Parameter";
+            headerRow.appendChild(pHeader);
+
+            activeChartData.dates.forEach((dateStr, index) => {
+                const info = parseDateKey(dateStr);
+                const [y, m, d] = info.base.split('-');
+                const display = `${d}/${m}/${y.slice(-2)}${info.suffix > 0 ? ` (${info.suffix})` : ''}`;
+                
+                const sameBasePrev = activeChartData.dates[index-1]?.startsWith(info.base);
+                const sameBaseNext = activeChartData.dates[index+1]?.startsWith(info.base);
+
+                const dHeader = document.createElement('div');
+                dHeader.className = "p-2 border-r border-slate-100 w-20 shrink-0 text-center bg-white text-slate-600 flex flex-col items-center justify-center";
+                
+                let arrowsHtml = `<div class="font-bold flex items-center gap-1 justify-center">`;
+                if(sameBasePrev) arrowsHtml += `<button type="button" class="text-sky-400 hover:text-sky-700 px-1 swap-left"><i class="fa-solid fa-chevron-left"></i></button>`;
+                arrowsHtml += `<span class="whitespace-nowrap text-xs">${display}</span>`;
+                if(sameBaseNext) arrowsHtml += `<button type="button" class="text-sky-400 hover:text-sky-700 px-1 swap-right"><i class="fa-solid fa-chevron-right"></i></button>`;
+                arrowsHtml += `</div>`;
+                
+                const innerDiv = document.createElement('div');
+                innerDiv.innerHTML = arrowsHtml;
+                const delBtn = document.createElement('button');
+                delBtn.className = "text-red-300 hover:text-red-500 text-[10px] mt-1";
+                delBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+                delBtn.onclick = (e) => { e.stopPropagation(); window.handleDeleteDate(patientId, dateStr); };
+                
+                const sl = innerDiv.querySelector('.swap-left'); if(sl) sl.onclick = (e) => { e.stopPropagation(); window.swapDataContent(patientId, index, -1); };
+                const sr = innerDiv.querySelector('.swap-right'); if(sr) sr.onclick = (e) => { e.stopPropagation(); window.swapDataContent(patientId, index, 1); };
+
+                dHeader.appendChild(innerDiv);
+                dHeader.appendChild(delBtn);
+                headerRow.appendChild(dHeader);
+            });
+            headerContainer.appendChild(headerRow);
+
+            const ixRows = activeChartData.rows.filter(r => r.category === 'Investigations').sort((a,b) => getRowRank(a) - getRowRank(b));
+            const mxRows = activeChartData.rows.filter(r => r.category !== 'Investigations').sort((a,b) => getRowRank(a) - getRowRank(b));
+
+            const renderRowGroup = (rows, bgClass) => {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = "min-w-max"; // Force width to trigger scroll
+                rows.forEach(row => {
+                    const isTall = ["Antibiotics", "Blood CS", "BAL CS", "Tip CS", "POCUS"].includes(row.label);
+                    const isSmall = ["Blood CS", "BAL CS", "Tip CS", "POCUS"].includes(row.label);
+
+                    const rDiv = document.createElement('div');
+                    rDiv.className = `flex border-b border-slate-100 ${bgClass||''} ${isTall ? 'h-14' : ''}`;
+                
+                    const labelDiv = document.createElement('div');
+                    labelDiv.className = "p-2 border-r border-slate-100 sticky-col w-24 shrink-0 font-bold text-slate-700 bg-white text-xs z-10 flex justify-between items-center group";
+                    labelDiv.innerHTML = `<span class="${isTall ? 'whitespace-normal leading-tight' : 'truncate'}">${row.label}</span>`;
+                    const delRowBtn = document.createElement('button');
+                    delRowBtn.className = "opacity-0 group-hover:opacity-100 text-red-300 hover:text-red-500 px-1";
+                    delRowBtn.innerHTML = '<i class="fa-solid fa-x"></i>';
+                    delRowBtn.onclick = (e) => { e.stopPropagation(); window.deleteRow(patientId, row.label); };
+                    labelDiv.appendChild(delRowBtn);
+                    rDiv.appendChild(labelDiv);
+
+                    activeChartData.dates.forEach(date => {
+                        const cell = document.createElement('div');
+                        cell.className = "w-20 shrink-0 border-r border-slate-100 p-0";
+                        
+                        let input;
+                        if (isTall) {
+                            input = document.createElement('textarea');
+                            input.className = `chart-input w-full h-full text-center bg-transparent p-1 ${isSmall ? 'text-[10px]' : 'text-xs'} text-slate-600 font-medium focus:bg-sky-50 focus:text-sky-700 outline-none transition-colors resize-none leading-tight`;
+                        } else {
+                            input = document.createElement('input');
+                            const isCompact = row.label === "Na/K/Cl";
+                            input.className = `chart-input w-full h-full text-center bg-transparent py-1 text-slate-600 ${isCompact ? 'text-[10px]' : ''} font-medium focus:bg-sky-50 focus:text-sky-700 outline-none transition-colors`;
+                        }
+
+                        input.value = (row.data && row.data[date]) ? row.data[date] : "";
+                        input.onchange = (e) => window.updateCell(patientId, row.label, date, e.target.value);
+                        cell.appendChild(input);
+                        rDiv.appendChild(cell);
+                    });
+                    groupDiv.appendChild(rDiv);
+                });
+                return groupDiv;
+            };
+
+            const topPane = document.createElement('div');
+            topPane.className = "flex-[5] overflow-y-auto overflow-x-auto no-scrollbar-x border-b-4 border-slate-200 relative";
+            topPane.appendChild(renderRowGroup(ixRows, "bg-white"));
+
+            const bottomPane = document.createElement('div');
+            bottomPane.className = "flex-[2.3] overflow-y-auto overflow-x-auto relative bg-pink-50/10";
+            bottomPane.appendChild(renderRowGroup(mxRows, "bg-pink-50/20"));
+
+            container.appendChild(headerContainer);
+            container.appendChild(topPane);
+            container.appendChild(bottomPane);
+
+            // Sync Scrolling
+            const sync = (src, targets) => {
+                src.addEventListener('scroll', () => {
+                    if(window.isSyncing) return;
+                    window.isSyncing = true;
+                    targets.forEach(t => t.scrollLeft = src.scrollLeft);
+                    requestAnimationFrame(() => window.isSyncing = false);
+                });
+            };
+            sync(topPane, [headerContainer, bottomPane]);
+            sync(bottomPane, [headerContainer, topPane]);
+        };
+
+        // --- ACTIONS ---
+        window.updateCell = async (pId, label, date, val) => {
+            const n = { ...activeChartData };
+            const row = n.rows.find(r => r.label === label);
+            if(!row.data) row.data = {};
+            row.data[date] = val;
+            await window.saveChart(pId, n);
+        };
+
+        window.addNewRow = async (pId, sel) => {
+            let label = sel, category = 'Investigations';
+            if (sel === 'CUSTOM_IX') label = prompt("Ix Name:");
+            else if (sel === 'CUSTOM_MX') { label = prompt("Mx Name:"); category = 'Medicines'; }
+            else { category = STD_MX.includes(sel) ? 'Medicines' : 'Investigations'; }
+            if(!label) return;
+            const n = { ...activeChartData }; if(n.rows.find(x => x.label === label)) return;
+            n.rows.push({ label, category, data: {} }); await window.saveChart(pId, n);
+        };
+
+        window.addNewDate = async (pId, dStr) => {
+            const n = { ...activeChartData };
+            const matches = n.dates.filter(d => d.startsWith(dStr));
+            let final = dStr;
+            if (matches.length === 1 && matches[0] === dStr) {
+                const f = `${dStr} (1)`; final = `${dStr} (2)`;
+                n.dates[n.dates.indexOf(dStr)] = f;
+                n.rows.forEach(r => { if(r.data?.[dStr]) { r.data[f] = r.data[dStr]; delete r.data[dStr]; } });
+                n.dates.push(final);
+            } else if (matches.length > 0) {
+                let max = 0; matches.forEach(m => { const s = parseDateKey(m).suffix; if(s > max) max = s; });
+                final = `${dStr} (${max + 1})`; n.dates.push(final);
+            } else n.dates.push(final);
+            await window.saveChart(pId, n);
+        };
+
+        window.handleDeleteDate = async (pId, dStr) => {
+            if (!confirm(`Delete column?`)) return;
+            const n = { ...activeChartData };
+            n.dates = n.dates.filter(d => d !== dStr);
+            n.rows.forEach(r => { if(r.data) delete r.data[dStr]; });
+            const base = dStr.split(' ')[0];
+            let matches = n.dates.filter(d => d.startsWith(base)).sort((a,b) => parseDateKey(a).suffix - parseDateKey(b).suffix);
+            if (matches.length === 1) {
+                const s = matches[0]; n.dates[n.dates.indexOf(s)] = base;
+                n.rows.forEach(r => { if(r.data?.[s]) { r.data[base] = r.data[s]; delete r.data[s]; } });
+            } else if (matches.length > 1) {
+                matches.forEach((old, i) => {
+                    const next = `${base} (${i+1})`;
+                    n.dates[n.dates.indexOf(old)] = next;
+                    n.rows.forEach(r => { if(r.data?.[old]) { r.data[next] = r.data[old]; delete r.data[old]; } });
+                });
+            }
+            await window.saveChart(pId, n);
+        };
+
+        window.swapDataContent = async (pId, idx, dir) => {
+            const n = { ...activeChartData };
+            const dA = n.dates[idx], dB = n.dates[idx + dir];
+            if (!dB) return;
+            n.rows.forEach(r => { if(!r.data) r.data = {}; const tmp = r.data[dA] || ""; r.data[dA] = r.data[dB] || ""; r.data[dB] = tmp; });
+            await window.saveChart(pId, n);
+        };
+
+        window.deleteRow = async (pId, label) => {
+            if(!confirm(`Remove row ${label}?`)) return;
+            const n = { ...activeChartData };
+            n.rows = n.rows.filter(r => r.label !== label);
+            await window.saveChart(pId, n);
+        };
+
+        window.updateStaticField = async (pId, f, v) => { const n = { ...activeChartData }; if(!n.static) n.static = {}; n.static[f] = v; await window.saveChart(pId, n); };
+        window.clearChart = async (pId) => { if(confirm("Clear chart?")) await window.saveChart(pId, { dates: [], rows: JSON.parse(JSON.stringify(DEFAULT_ROWS)) }); };
+        window.saveChart = async (pId, data) => { await setDoc(doc(db, 'artifacts', COLLECTION_ROOT, 'public', 'data', PATH_CHARTS, pId), data); };
+
+        // --- PRINT ---
+        window.printPatientChart = (pId, orientation) => {
+            const p = patientsData.find(x => x.id === pId);
+            const isNCH = p.ward?.includes('NCH');
+            const hName = isNCH ? "NCH Kid's Hospital" : "NICE Children Hospital";
+            const slotsPerPage = orientation === 'portrait' ? 7 : 10;
+            
+            const styleTag = document.getElementById('page-orientation-style');
+            styleTag.innerHTML = `@page { size: A4 ${orientation}; margin: 5mm; }`;
+
+            const printC = document.getElementById('printContainer'); printC.innerHTML = '';
+            const allDates = [...activeChartData.dates].sort((a,b) => parseDateKey(a).base.localeCompare(parseDateKey(b).base) || parseDateKey(a).suffix - parseDateKey(b).suffix);
+
+            const dateWeights = {};
+            allDates.forEach(d => {
+                let wide = false;
+                activeChartData.rows.forEach(r => { if((r.data?.[d] || "").length > 25) wide = true; });
+                dateWeights[d] = wide ? 2 : 1;
+            });
+
+            let chunks = []; let currentChunk = []; let currentSlots = 0;
+            allDates.forEach(d => {
+                const w = dateWeights[d];
+                if (currentSlots + w > slotsPerPage) { chunks.push(currentChunk); currentChunk = [d]; currentSlots = w; }
+                else { currentChunk.push(d); currentSlots += w; }
+            });
+            if(currentChunk.length) chunks.push(currentChunk);
+
+            const slotWidth = 85 / slotsPerPage;
+
+            chunks.forEach((chunk) => {
+                const page = document.createElement('div'); page.className = "print-page";
+                const bg = activeChartData.static?.bloodGroup || "--";
+                const g6pd = activeChartData.static?.g6pd || "--";
+                
+                let html = `<div class="print-header-box"><div><div class="font-bold text-xl">${hName}</div><div class="font-bold text-lg uppercase">${p.name}</div></div><div class="text-right text-xs"><span class="static-box">BG: <b>${bg}</b></span><br><span class="static-box mt-1">G6PD: <b>${g6pd}</b></span></div></div>`;
+                html += `<table class="print-table"><thead><tr><th class="col-label">PARAMETER</th>`;
+                
+                let pageSlotsUsed = 0;
+                chunk.forEach(d => {
+                    const info = parseDateKey(d); const [y,m,day] = info.base.split('-');
+                    const w = dateWeights[d]; pageSlotsUsed += w;
+                    html += `<th style="width:${slotWidth * w}%">${day}/${m}/${y.slice(-2)}${info.suffix?` (${info.suffix})`:''}</th>`;
+                });
+                while(pageSlotsUsed < slotsPerPage) { html += `<th style="width:${slotWidth}%"></th>`; pageSlotsUsed++; }
+
+                html += `</tr></thead><tbody>`;
+                let curCat = null;
+                [...activeChartData.rows].sort((a,b)=>getRowRank(a)-getRowRank(b)).forEach(r => {
+                    if(r.category !== curCat) { curCat = r.category; html += `<tr style="background:#eee; font-weight:bold;"><td colspan="${slotsPerPage + 1}" style="text-align:center;">${curCat}</td></tr>`; }
+                    html += `<tr><td class="col-label">${r.label}</td>`;
+                    let rowSlotsUsed = 0;
+                    chunk.forEach(d => { html += `<td>${r.data?.[d]||''}</td>`; rowSlotsUsed += dateWeights[d]; });
+                    while(rowSlotsUsed < slotsPerPage) { html += `<td></td>`; rowSlotsUsed++; }
+                    html += `</tr>`;
+                });
+                page.innerHTML = html + `</tbody></table>`; printC.appendChild(page);
+            });
+            setTimeout(() => window.print(), 300);
+        };
+
+        // --- INBOX LOGIC ---
+        function renderInbox() {
+            const container = document.getElementById('inboxList');
+            const countBadge = document.getElementById('inboxCount');
+            
+            if(inboxData.length > 0) {
+                countBadge.textContent = inboxData.length;
+                countBadge.classList.remove('hidden');
+            } else {
+                countBadge.classList.add('hidden');
+            }
+
+            container.innerHTML = '';
+            if (inboxData.length === 0) {
+                container.innerHTML = `<div class="text-center text-gray-400 py-10 flex flex-col items-center"><i class="fa-solid fa-check-circle text-4xl mb-2 text-green-100"></i>All caught up!</div>`;
+                return;
+            }
+
+            inboxData.sort((a,b) => new Date(b.receivedAt) - new Date(a.receivedAt)).forEach(item => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-4 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition";
+                
+                // Patient Selector Logic
+                const sortedPatients = [...patientsData].sort((a,b) => (a.name || "").localeCompare(b.name || ""));
+                let patientOptions = `<option value="" disabled ${!item.suggestedMatchId ? 'selected' : ''}>-- Select Patient --</option>`;
+                
+                sortedPatients.forEach(p => {
+                    const isSelected = p.id === item.suggestedMatchId;
+                    patientOptions += `<option value="${p.id}" ${isSelected ? 'selected' : ''}>${p.name} (${p.ward})</option>`;
+                });
+
+                const isNewParam = item.reason === "New Parameters";
+                const reasonBadge = isNewParam 
+                    ? `<span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-[10px] font-bold border border-purple-200">New Parameters (Known data saved)</span>`
+                    : `<span class="text-xs text-orange-500 font-bold">Reason: ${item.reason || 'Review Needed'}</span>`;
+
+                // Data Preview
+                let dataPreview = Object.entries(item.data).map(([k,v]) => `<span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[10px] font-mono"><b>${k}:</b> ${v}</span>`).join(' ');
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase">PDF Report</span>
+                                <span class="text-gray-400 text-[10px]">${new Date(item.receivedAt).toLocaleString()}</span>
+                            </div>
+                            <h3 class="font-bold text-lg text-slate-800">"${item.patientName}"</h3>
+                            <div class="mt-2 mb-1 flex items-center gap-2">
+                                <label class="text-[10px] font-bold text-gray-400 uppercase">Save To:</label>
+                                <select id="patient-select-${item.id}" class="border border-gray-300 rounded text-xs font-bold text-slate-700 py-1 px-2 bg-white focus:border-blue-500 outline-none">${patientOptions}</select>
+                            </div>
+                            <div class="mt-1">${reasonBadge}</div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="window.rejectInboxItem('${item.id}')" class="px-3 py-2 rounded bg-white border border-red-200 text-red-500 hover:bg-red-50 text-xs font-bold transition">Reject</button>
+                            <button onclick="window.acceptInboxItem('${item.id}')" class="px-3 py-2 rounded bg-green-600 text-white hover:bg-green-700 text-xs font-bold transition shadow-sm">Accept & Save</button>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 p-2 rounded border border-slate-100 mt-2">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase mb-1">Extracted Data</div>
+                        <div class="flex flex-wrap gap-1">${dataPreview}</div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        window.rejectInboxItem = async (itemId) => {
+            if(!confirm("Permanently delete this report?")) return;
+            await deleteDoc(doc(db, 'artifacts', COLLECTION_ROOT, 'public', 'data', PATH_INBOX, itemId));
+        };
+
+        window.rejectAllInboxItems = async () => {
+            if (inboxData.length === 0) {
+                return;
+            }
+            if (!confirm(`Are you sure you want to reject all ${inboxData.length} items in the inbox? This cannot be undone.`)) return;
+
+            const promises = [];
+            for (const item of inboxData) {
+                promises.push(deleteDoc(doc(db, 'artifacts', COLLECTION_ROOT, 'public', 'data', PATH_INBOX, item.id)));
+            }
+            
+            try {
+                await Promise.all(promises);
+            } catch (e) {
+                console.error("Error rejecting all items:", e);
+                alert("An error occurred while rejecting items. Some may not have been deleted.");
+            }
+        };
+
+        window.acceptInboxItem = async (itemId) => {
+            const item = inboxData.find(i => i.id === itemId);
+            if(!item) return;
+
+            const selectEl = document.getElementById(`patient-select-${itemId}`);
+            const patientId = selectEl.value;
+            if(!patientId) { alert("Please select a patient to save this report to."); return; }
+
+            // 1. Fetch Current Chart
+            const chartRef = doc(db, 'artifacts', COLLECTION_ROOT, 'public', 'data', PATH_CHARTS, patientId);
+            const snap = await getDoc(chartRef);
+            let chart = snap.exists() ? snap.data() : { dates: [], rows: JSON.parse(JSON.stringify(DEFAULT_ROWS)), static: {} };
+
+            // 2. Merge Data (Smart Merge)
+            // Group inbox data by date first
+            const dataByDate = {};
+            for (const [key, value] of Object.entries(item.data || {})) {
+                const match = key.match(/^(.*)\s+\(([\d\-:\s]+)\)$/);
+                let label, dateKey;
+                if (match) {
+                    label = match[1].trim();
+                    dateKey = match[2].trim();
+                } else {
+                    label = key;
+                    dateKey = item.reportDate || new Date().toISOString().split('T')[0]; // Use extracted date if available
+                }
+                if (!dataByDate[dateKey]) dataByDate[dateKey] = {};
+                dataByDate[dateKey][label] = value;
+            }
+
+            // Apply merge logic
+            for (const [reportDate, values] of Object.entries(dataByDate)) {
+                let targetDateKey = reportDate;
+                const reportDay = reportDate.split(' ')[0];
+                
+                const existingDates = chart.dates || [];
+                const candidates = existingDates.filter(d => d.split(' ')[0] === reportDay);
+                
+                let mergeTarget = null;
+                for (const cand of candidates) {
+                    let hasConflict = false;
+                    for (const label of Object.keys(values)) {
+                        const row = chart.rows.find(r => r.label === label);
+                        if (row && row.data && row.data[cand] && row.data[cand].trim() !== "" && row.data[cand] !== values[label]) {
+                            hasConflict = true;
+                            break;
+                        }
+                    }
+                    if (!hasConflict) {
+                        mergeTarget = cand;
+                        break;
+                    }
+                }
+
+                if (mergeTarget) targetDateKey = mergeTarget;
+
+                if (!chart.dates.includes(targetDateKey)) chart.dates.push(targetDateKey);
+
+                for (const [label, val] of Object.entries(values)) {
+                    let row = chart.rows.find(r => r.label === label);
+                    if (!row) {
+                        const cat = STD_MX.includes(label) ? 'Medicines' : 'Investigations';
+                        row = { label: label, category: cat, data: {} };
+                        chart.rows.push(row);
+                    }
+                    if (!row.data) row.data = {};
+                    row.data[targetDateKey] = val;
+                }
+            }
+
+            // Handle static updates
+            if (item.staticUpdates) {
+                if (!chart.static) chart.static = {};
+                for (const [key, value] of Object.entries(item.staticUpdates)) {
+                    if (value && value.trim() !== "" && value !== "-") chart.static[key] = value;
+                }
+            }
+            
+            chart.dates.sort();
+
+            // 3. Save Chart & Delete Inbox Item
+            await setDoc(chartRef, chart);
+            await deleteDoc(doc(db, 'artifacts', COLLECTION_ROOT, 'public', 'data', PATH_INBOX, itemId));
+        };
+
+        // --- NOTIFICATIONS LOGIC ---
+        function startNotificationListener() {
+            const startOfDay = new Date();
+            startOfDay.setHours(0,0,0,0);
+            
+            const q = query(
+                collection(db, 'artifacts', COLLECTION_ROOT, 'public', 'data', PATH_NOTIFICATIONS),
+                where("timestamp", ">=", startOfDay.toISOString()),
+                orderBy("timestamp", "desc")
+            );
+
+            onSnapshot(q, (snap) => {
+                const container = document.getElementById('notificationList');
+                container.innerHTML = '';
+                if (snap.empty) {
+                    container.innerHTML = '<div class="text-center text-gray-400 py-4 text-sm">No updates today.</div>';
+                    return;
+                }
+                snap.forEach(doc => {
+                    const n = doc.data();
+                    const time = new Date(n.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    const isAuto = n.type === 'AUTO_SAVE';
+                    const icon = isAuto ? '<i class="fa-solid fa-check-circle text-green-500"></i>' : '<i class="fa-solid fa-inbox text-orange-500"></i>';
+                    
+                    const div = document.createElement('div');
+                    div.className = "bg-white p-3 rounded border border-gray-100 shadow-sm flex gap-3 items-start";
+                    div.innerHTML = `<div class="mt-1">${icon}</div><div><div class="font-bold text-sm text-slate-700">${n.patientName}</div><div class="text-xs text-slate-500">${n.details}</div><div class="text-[10px] text-gray-400 mt-1">${time}</div></div>`;
+                    container.appendChild(div);
+                });
+            });
+        }
+
+        // --- GEMINI & BOTPRESS INTEGRATION ---
+        
+        // Function to allow Botpress or User to update the App's "Brain" (Instructions)
+        window.updateAppRules = async (newRulesText) => {
+            try {
+                const ref = doc(db, 'artifacts', COLLECTION_ROOT, 'config', 'gemini_brain');
+                const snap = await getDoc(ref);
+                let data = snap.exists() ? snap.data() : { instructions: "", chatHistory: [] };
+                
+                data.instructions = newRulesText;
+                data.chatHistory.push({ role: 'system', text: "Rules updated via Botpress/Gemini.", timestamp: new Date().toISOString() });
+                
+                await setDoc(ref, data);
+                console.log("App rules updated successfully.");
+                return "Success";
+            } catch (e) {
+                console.error("Error updating rules:", e);
+                return "Error: " + e.message;
+            }
+        };
+
+        // Function to access Gemini Model (Self-Improvement Logic)
+        // This can be called by Botpress custom code or manually
+        window.askGeminiToImprove = async (prompt) => {
+            try {
+                // 1. Gather Context (Source Code)
+                let frontendCode = document.documentElement.outerHTML; // Default to current DOM
+                
+                let backendCode = "Not available (Run window.uploadBackendCode(str) to save code.js)";
+                
+                try {
+                    const codeSnap = await getDoc(doc(db, 'artifacts', COLLECTION_ROOT, 'config', 'source_code'));
+                    if (codeSnap.exists() && codeSnap.data().codeJs) {
+                        backendCode = codeSnap.data().codeJs;
+                    }
+                } catch(e) { console.warn("Could not fetch backend code:", e); }
+
+                // Try to fetch clean Frontend Source from GitHub if configured
+                const ghSnap = await getDoc(doc(db, 'artifacts', COLLECTION_ROOT, 'config', 'github_settings'));
+                if (ghSnap.exists() && ghSnap.data().frontendUrl && ghSnap.data().token) {
+                    try {
+                        const cleanHtml = await window.fetchContentFromGithubAPI(ghSnap.data().frontendUrl, ghSnap.data().token);
+                        if (cleanHtml) frontendCode = cleanHtml;
+                    } catch(e) { console.warn("Using DOM fallback for frontend context"); }
+                }
+
+                const fullPrompt = `
+Context: You are an AI assistant helping to improve this medical application.
+Here is the current source code:
+
+--- FILE: testman.html (Frontend) ---
+${frontendCode}
+
+--- FILE: code.js (Backend/GAS) ---
+${backendCode}
+
+--- USER REQUEST ---
+${prompt}
+`;
+                const result = await geminiModel.generateContent(fullPrompt);
+                const response = result.response;
+                const text = response.text();
+                console.log("Gemini Response:", text);
+                return text;
+            } catch (e) {
+                console.error("Gemini Error:", e);
+                return "Error accessing Gemini: " + e.message;
+            }
+        };
+
+        // --- FULL AUTOMATION: BRAIN UPDATES GITHUB ---
+        window.askBrainToUpdateBackend = async (userPrompt) => {
+            const ghUrl = document.getElementById('githubUrlInput').value;
+            const ghToken = document.getElementById('githubTokenInput').value;
+            
+            if (!ghUrl || !ghToken) return "Error: GitHub URL and PAT Token required in Sync Modal.";
+
+            // 1. Get Current Code
+            let currentCode = document.getElementById('backendCodeInput').value;
+            if (!currentCode || currentCode.length < 50) {
+                await window.fetchFromGithub();
+                currentCode = document.getElementById('backendCodeInput').value;
+            }
+
+            // 2. Ask Gemini to Modify
+            const prompt = `
+            ACT AS: Senior Google Apps Script Developer.
+            TASK: Modify the following code based on this request: "${userPrompt}"
+            
+            CURRENT CODE:
+            ${currentCode}
+            
+            OUTPUT FORMAT: Return ONLY the raw JavaScript code. No markdown formatting, no explanation. Start immediately with the code.
+            `;
+            
+            console.log("Asking Brain to rewrite code...");
+            const newCode = await window.askGeminiToImprove(prompt);
+            
+            // Clean up Gemini response (remove markdown if present)
+            let cleanCode = newCode.replace(/```javascript/g, '').replace(/```/g, '').trim();
+
+            // 3. Push to GitHub
+            console.log("Pushing to GitHub...");
+            const pushResult = await window.pushToGithub(cleanCode, `AI Update: ${userPrompt}`);
+            
+            // 4. Update Local Memory
+            if (pushResult.success) await window.uploadBackendCode(cleanCode);
+            
+            return pushResult.message;
+        };
+
+        window.askBrainToUpdateFrontend = async (userPrompt) => {
+            const ghUrl = document.getElementById('githubFrontendUrlInput').value;
+            const ghToken = document.getElementById('githubTokenInput').value;
+            
+            if (!ghUrl || !ghToken) return "Error: Frontend GitHub URL and Token required in Sync Modal.";
+
+            // 1. Get Current Code
+            console.log("Fetching current frontend code...");
+            const currentCode = await window.fetchContentFromGithubAPI(ghUrl, ghToken);
+            if (!currentCode) return "Error: Could not fetch current frontend code.";
+
+            // 2. Ask Gemini to Modify
+            const prompt = `
+            ACT AS: Senior Frontend Developer.
+            TASK: Modify the following HTML/JS code based on this request: "${userPrompt}"
+            
+            CURRENT CODE:
+            ${currentCode}
+            
+            OUTPUT FORMAT: Return ONLY the raw HTML code. No markdown formatting, no explanation. Start immediately with <!DOCTYPE html> or the code.
+            `;
+            
+            console.log("Asking Brain to rewrite frontend...");
+            const newCode = await window.askGeminiToImprove(prompt);
+            let cleanCode = newCode.replace(/```html/g, '').replace(/```/g, '').trim();
+
+            // 3. Push to GitHub
+            console.log("Pushing to GitHub...");
+            return await window.pushToGithub(cleanCode, `AI Update (Frontend): ${userPrompt}`, ghUrl);
+        };
+
+        // Helper to upload backend code (Run in console once)
+        window.uploadBackendCode = async (codeString) => {
+             await setDoc(doc(db, 'artifacts', COLLECTION_ROOT, 'config', 'source_code'), { codeJs: codeString });
+             console.log("Backend code saved to Firestore.");
+        };
+
+        window.openCodeSync = async () => {
+            document.getElementById('codeSyncModal').classList.remove('hidden');
+            const input = document.getElementById('backendCodeInput');
+            const ghInput = document.getElementById('githubUrlInput');
+            const ghFrontendInput = document.getElementById('githubFrontendUrlInput');
+            const tokenInput = document.getElementById('githubTokenInput');
+            input.value = "Loading current context...";
+            try {
+                // Load saved GitHub URL
+                const ghSnap = await getDoc(doc(db, 'artifacts', COLLECTION_ROOT, 'config', 'github_settings'));
+                if (ghSnap.exists() && ghSnap.data().url) ghInput.value = ghSnap.data().url;
+                if (ghSnap.exists() && ghSnap.data().frontendUrl) ghFrontendInput.value = ghSnap.data().frontendUrl;
+                if (ghSnap.exists() && ghSnap.data().token) tokenInput.value = ghSnap.data().token;
+                
+                const snap = await getDoc(doc(db, 'artifacts', COLLECTION_ROOT, 'config', 'source_code'));
+                if (snap.exists() && snap.data().codeJs) {
+                    input.value = snap.data().codeJs;
+                } else {
+                    input.value = "";
+                }
+            } catch(e) { input.value = "// Error loading context."; }
+        };
+
+        // Helper to parse GitHub URLs (Standard or Raw)
+        function parseGithubUrl(url) {
+            try {
+                const u = new URL(url);
+                const parts = u.pathname.split('/').filter(p => p);
+                if (u.hostname === 'github.com') {
+                    // /user/repo/blob/branch/path...
+                    if (parts.length < 4 || parts[2] !== 'blob') return null;
+                    return { owner: parts[0], repo: parts[1], branch: parts[3], path: parts.slice(4).join('/') };
+                } else if (u.hostname === 'raw.githubusercontent.com') {
+                    // /user/repo/branch/path...
+                    if (parts.length < 3) return null;
+                    return { owner: parts[0], repo: parts[1], branch: parts[2], path: parts.slice(3).join('/') };
+                }
+                return null;
+            } catch (e) { return null; }
+        }
+
+        window.fetchFromGithub = async (type = 'backend') => {
+            const urlInputId = type === 'frontend' ? 'githubFrontendUrlInput' : 'githubUrlInput';
+            const urlInput = document.getElementById(urlInputId).value.trim();
+            const token = document.getElementById('githubTokenInput').value.trim();
+            if(!urlInput) return alert("Please enter a valid GitHub URL.");
+            
+            try {
+                let text = "";
+                const gitInfo = parseGithubUrl(urlInput);
+
+                if (token && gitInfo) {
+                    text = await window.fetchContentFromGithubAPI(urlInput, token);
+                } else {
+                    // Try direct fetch (works for Public Raw URLs)
+                    let fetchUrl = urlInput;
+                    if (urlInput.includes('github.com') && !urlInput.includes('raw.githubusercontent.com')) {
+                         fetchUrl = urlInput.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+                    }
+                    const res = await fetch(fetchUrl);
+                    if(!res.ok) throw new Error(`Failed to fetch (${res.status})`);
+                    text = await res.text();
+                }
+
+                if (type === 'backend') {
+                    document.getElementById('backendCodeInput').value = text;
+                } else {
+                    alert("Frontend code verified and fetched successfully!");
+                }
+                
+                // Save URL preference
+                await window.saveBackendCode(); // Saves all inputs
+            } catch(e) {
+                alert("Error: " + e.message);
+            }
+        };
+
+        window.fetchContentFromGithubAPI = async (url, token) => {
+            const gitInfo = parseGithubUrl(url);
+            if (!gitInfo) throw new Error("Invalid GitHub URL");
+            const apiUrl = `https://api.github.com/repos/${gitInfo.owner}/${gitInfo.repo}/contents/${gitInfo.path}?ref=${gitInfo.branch}`;
+            const res = await fetch(apiUrl, { headers: { Authorization: `token ${token}` } });
+            if(!res.ok) throw new Error(`GitHub API Error: ${res.status} ${res.statusText}`);
+            const json = await res.json();
+            if(json.content) return decodeURIComponent(escape(atob(json.content.replace(/\n/g, ''))));
+            throw new Error("File content not found");
+        };
+
+        window.pushToGithub = async (content, message, targetUrl = null) => {
+            // Default to backend URL if not specified
+            const urlInput = targetUrl || document.getElementById('githubUrlInput').value.trim();
+            const token = document.getElementById('githubTokenInput').value.trim();
+            
+            if (!urlInput || !token) return { success: false, message: "Missing URL or Token" };
+
+            const gitInfo = parseGithubUrl(urlInput);
+            if (!gitInfo) return { success: false, message: "Invalid GitHub URL format" };
+
+            const apiUrl = `https://api.github.com/repos/${gitInfo.owner}/${gitInfo.repo}/contents/${gitInfo.path}`;
+
+            try {
+                // 1. Get SHA of current file
+                const getRes = await fetch(`${apiUrl}?ref=${gitInfo.branch}`, { headers: { Authorization: `token ${token}` } });
+                const getData = await getRes.json();
+                
+                // 2. Update File
+                const putRes = await fetch(apiUrl, {
+                    method: 'PUT',
+                    headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: message,
+                        content: btoa(unescape(encodeURIComponent(content))), // Base64 encode (UTF-8 safe)
+                        sha: getData.sha,
+                        branch: gitInfo.branch
+                    })
+                });
+                
+                if (putRes.ok) return { success: true, message: "Updated GitHub successfully." };
+                else return { success: false, message: "GitHub API Error: " + putRes.statusText };
+            } catch (e) { return { success: false, message: e.message }; }
+        };
+
+        window.saveBackendCode = async () => {
+            const backendCode = document.getElementById('backendCodeInput').value;
+            const backendUrl = document.getElementById('githubUrlInput').value.trim();
+            const frontendUrl = document.getElementById('githubFrontendUrlInput').value.trim();
+            const token = document.getElementById('githubTokenInput').value.trim();
+
+            // Save Settings
+            await setDoc(doc(db, 'artifacts', COLLECTION_ROOT, 'config', 'github_settings'), { url: backendUrl, frontendUrl: frontendUrl, token: token });
+            
+            if(backendCode) await window.uploadBackendCode(backendCode);
+            document.getElementById('codeSyncModal').classList.add('hidden');
+            alert("Configuration and Context Saved.");
+        };
+
+        // --- ADMIT PATIENT LOGIC ---
+        window.openAdmitModal = () => {
+            document.getElementById('admitModal').classList.remove('hidden');
+            document.getElementById('admitDob').valueAsDate = new Date();
+        };
+        window.closeAdmitModal = () => document.getElementById('admitModal').classList.add('hidden');
+
+        window.saveNewPatient = async () => {
+            const serial = document.getElementById('admitSerial').value;
+            const ward = document.getElementById('admitWard').value;
+            const name = document.getElementById('admitName').value;
+            const dob = document.getElementById('admitDob').value;
+            const tob = document.getElementById('admitTob').value;
+            const weight = parseFloat(document.getElementById('admitWeight').value);
+            const gender = document.getElementById('admitGender').value;
+            const gaWeeks = parseInt(document.getElementById('admitGaWeeks').value);
+            const gaDays = parseInt(document.getElementById('admitGaDays').value) || 0;
+            const type = document.getElementById('admitType').value;
+
+            if(!name) { alert("Patient Name is required."); return; }
+
+            const newPatient = {
+                customSerial: serial ? parseInt(serial) : null,
+                ward: ward,
+                name: name,
+                dob: (dob || new Date().toISOString().split('T')[0]) + (tob ? "T" + tob : "T00:00"),
+                birthWeight: weight || 0,
+                currentWeight: weight || 0,
+                prevWeight: weight || 0,
+                gender: gender,
+                birthGaWeeks: gaWeeks || 0,
+                birthGaDays: gaDays,
+                termStatus: type,
+                admissionDate: new Date().toISOString(),
+                status: "Active"
+            };
+
+            try {
+                await addDoc(collection(db, 'artifacts', COLLECTION_ROOT, 'public', 'data', PATH_PATIENTS), newPatient);
+                window.closeAdmitModal();
+                // Clear form
+                document.getElementById('admitName').value = '';
+                document.getElementById('admitSerial').value = '';
+                document.getElementById('admitWeight').value = '';
+            } catch(e) {
+                console.error("Error adding patient: ", e);
+                alert("Error adding patient: " + e.message);
+            }
+        };
+
+        // --- BULK ADMIT LOGIC ---
+        window.triggerBulkAdmit = () => document.getElementById('bulkAdmitInput').click();
+
+        window.processBulkAdmit = async (input) => {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(firstSheet);
+
+                    if (rows.length === 0) { alert("Excel file is empty!"); return; }
+                    if (!confirm(`Found ${rows.length} patients. Import now?\n\nExpected Columns: Serial, Ward, Name, DOB, Time, Weight, Gender, GA Weeks, GA Days, Type`)) return;
+
+                    let count = 0;
+                    for (const row of rows) {
+                        // Basic validation
+                        if (!row['Name']) {
+                            console.warn("Skipping row due to missing Name:", row);
+                            continue;
+                        }
+
+                        // Handle Date & Time
+                        let dobDate = row['DOB'] instanceof Date ? row['DOB'] : new Date(row['DOB']);
+                        const dobStr = isNaN(dobDate) ? new Date().toISOString().split('T')[0] : dobDate.toISOString().split('T')[0];
+                        
+                        let timeStr = "00:00";
+                        if (row['Time']) {
+                             if (row['Time'] instanceof Date) timeStr = row['Time'].toTimeString().slice(0,5);
+                             else if (typeof row['Time'] === 'string') timeStr = row['Time'].substring(0,5);
+                        }
+
+                        const newPatient = {
+                            customSerial: row['Serial'] ? parseInt(row['Serial']) : null,
+                            ward: row['Ward'] || "N1",
+                            name: row['Name'],
+                            dob: `${dobStr}T${timeStr}`,
+                            birthWeight: parseFloat(row['Weight']) || 0,
+                            currentWeight: parseFloat(row['Weight']) || 0,
+                            prevWeight: parseFloat(row['Weight']) || 0,
+                            gender: row['Gender'] || "Ambiguous",
+                            birthGaWeeks: parseInt(row['GA Weeks']) || 0,
+                            birthGaDays: parseInt(row['GA Days']) || 0,
+                            termStatus: row['Type'] || "Preterm",
+                            admissionDate: new Date().toISOString(),
+                            status: "Active"
+                        };
+
+                        await addDoc(collection(db, 'artifacts', COLLECTION_ROOT, 'public', 'data', PATH_PATIENTS), newPatient);
+                        count++;
+                    }
+                    alert(`Successfully imported ${count} patients.`);
+                    input.value = ''; // Reset
+                } catch (err) {
+                    console.error(err);
+                    alert("Error parsing Excel: " + err.message);
+                    input.value = '';
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        };
+
+        // --- DELETE & CLEAR ACTIONS ---
+        window.deletePatient = async (id, name) => {
+            if(!confirm(`DELETE PATIENT: ${name}?\n\nThis will permanently remove the patient, their chart, and pending reports from the TEST database.`)) return;
+            try {
+                // 1. Delete Patient Record
+                await deleteDoc(doc(db, 'artifacts', COLLECTION_ROOT, 'public', 'data', PATH_PATIENTS, id));
+                // 2. Delete Chart Record
+                await deleteDoc(doc(db, 'artifacts', COLLECTION_ROOT, 'public', 'data', PATH_CHARTS, id));
+                // 3. Delete Associated Inbox Items (using local inboxData cache)
+                const pendingItems = inboxData.filter(i => i.suggestedMatchId === id);
+                for (const item of pendingItems) {
+                    await deleteDoc(doc(db, 'artifacts', COLLECTION_ROOT, 'public', 'data', PATH_INBOX, item.id));
+                }
+                // If active chart was this patient, close it
+                if (activeChartId === id) {
+                    if (activeChartUnsubscribe) activeChartUnsubscribe();
+                    activeChartId = null;
+                }
+            } catch(e) {
+                console.error(e);
+                alert("Error deleting: " + e.message);
+            }
+        };
+
+        window.clearAllCharts = async () => {
+            if(!confirm("WARNING: CLEAR ALL CLINICAL CHARTS?\n\nThis will delete all chart data for ALL patients in the TEST database.\nPatient profiles will remain.")) return;
+            if(!confirm("Are you absolutely sure? This cannot be undone.")) return;
+            
+            const snap = await getDocs(collection(db, 'artifacts', COLLECTION_ROOT, 'public', 'data', PATH_CHARTS));
+            const promises = []; snap.forEach(d => promises.push(deleteDoc(d.ref)));
+            await Promise.all(promises);
+            alert(`Cleared ${promises.length} charts.`);
+        };
+    </script>
+</body>
+</html>
