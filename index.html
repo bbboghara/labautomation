@@ -504,7 +504,7 @@ Do not say "I cannot". Just output the command.</textarea>
         // Initialize Vertex AI (Gemini)
         const vertexAI = getVertexAI(app);
         // Using gemini-3.0-flash for Brain function as requested
-        const geminiModel = getGenerativeModel(vertexAI, { model: "gemini-3.0-flash" });
+        const geminiModel = getGenerativeModel(vertexAI, { model: "gemini-3-flash" });
         
         // *** TEST MODE CONFIGURATION ***
         const COLLECTION_ROOT = 'nicu-dashboard-hybrid-test'; // CHANGED TO TEST PATH
@@ -1790,4 +1790,5 @@ ${prompt}
         };
     </script>
 </body>
+
 </html>
